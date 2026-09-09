@@ -1,61 +1,38 @@
 # isc-test-common
 
-Fælles, generisk kode til PwC's autotest-framework for SailPoint ISC.
-
-Repoet indeholder **runneren**, **rapportformatet** og de **basale test cases** der er
-ens på tværs af kunder. Det trækkes ind i hvert kunderepo som et git-submodule.
-
-Det indeholder med vilje **ikke**: kundekonfiguration, credentials, kundespecifikke
-test cases eller schedulering. Det ligger i kunderepoet.
-
-## Indhold
+Det fælles repo. Her ligger den kode PwC vedligeholder ét sted og genbruger på tværs
+af kunder. Det trækkes ind i hvert kunderepo som et git-submodule.
 
 ```
-runner/index.js        Udfører aktive test cases og skriver rapporten.
-                       Indeholder ingen beslutningslogik om hvad der er en fejl.
-lib/report.js          Bygger rapporten i ét fast JSON-format.
-lib/testloader.js      Finder test cases i dette repo og i kunderepoet.
-testcases/basic/       login, access-request, approval, provisioning
-scripts/run.sh|.ps1    Tynde wrappers omkring runneren.
+run.sh    Læser kundens .properties-fil og bruger værdierne.
+run.bat   Det samme, til Windows.
 ```
 
-Ingen dependencies, ingen `package.json`. Ren Node (CommonJS).
+## Pointen
 
-## Test case-kontrakten
+Common indeholder **ingen kundedata og kender ikke kundens navn**. Når scriptet kører,
+kigger det ét niveau op — ud i det kunderepo det er submodule i — og finder den
+`.properties`-fil der ligger der:
 
-Alle test cases — også kundens egne — eksporterer det samme:
-
-```js
-module.exports = {
-  id: 'approval',
-  navn: 'Godkend adgangsanmodning',
-  version: '1.0.0',
-  severity: 'high',
-  forventet_varighed_ms: 2500,
-  async run(ctx) {
-    return { status: 'pass', trin: ['...'], note: null };  // pass | fail | error | skipped
-  },
-  async cleanup(ctx) {},   // valgfri: kaldes altid, også efter fejl
-};
+```
+kunde-a/
+  kunde-a.properties     ← kundens værdier, fx tenant_url
+  common/                ← dette repo
+    run.sh  run.bat      ← læser filen ovenover
 ```
 
-`ctx` = `{ kunde, miljø, tenant_url, isc_release, secrets_fil, mock }`.
-
-**Testen sætter selv sin status.** Runneren udfører, måler og rapporterer — den
-vurderer ikke om resultatet er acceptabelt. Den vurdering hører hjemme hos PwC,
-nedstrøms for rapporten.
+Det er den ene kobling hele modellen hviler på: **koden kommer fra PwC, værdierne
+kommer fra kunden.** Skal en ny kunde på, opretter man et nyt kunderepo med deres
+egen `.properties`-fil — common er uændret.
 
 ## Kørsel
 
+Fra kunderepoets rod:
+
 ```sh
-node runner/index.js --config <config.json> --kunde-rod <kunderepo> [--real] [--out <fil>]
+common/run.sh          # macOS / Linux
+common\run.bat         # Windows
 ```
-
-`--mock` er default, så alt kan køre uden at installere browsere. `--real` slår
-rigtig Playwright til; i denne demo er kun `login` implementeret som rigtig test, og
-den springes over med `skipped` hvis `playwright` ikke er installeret.
-
-Exit code: `0` = pass, `1` = fail, `2` = error.
 
 ## Brug som submodule
 
@@ -65,16 +42,5 @@ git -C common checkout v1.0.0        # pin til et tag
 git add common .gitmodules && git commit -m "Pin common til v1.0.0"
 ```
 
-## Versionering
-
-**Tag ved hver ændring i testadfærd. Kunderepoet pinner et tag — aldrig en branch.**
-
-Et kunderepo peger på præcis én commit i dette repo. Det betyder at en ændring her
-først rammer kunden når kunden selv flytter sin pin. Det er dét der gør det muligt
-at tilpasse test cases til en ny ISC-release i sandbox, dage før prod opdateres,
-uden at prod-testene knækker.
-
-| Tag | Indhold |
-|---|---|
-| `v1.0.0` | Alle fire basale test cases i deres oprindelige form. |
-| `v1.1.0` | `approval.js` tilpasset det ekstra bekræftelsestrin SailPoint indførte i ISC 2026.10. |
+Kunderepoet gemmer kun hvilken **commit** af dette repo det bruger. En ændring her
+rammer derfor ingen kunde automatisk — kunden flytter selv sin pin, når de vil.
