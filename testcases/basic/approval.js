@@ -1,17 +1,21 @@
 // Test case: en godkender godkender en ventende adgangsanmodning.
 //
-// VERSION 1.0.0 — kender kun det gamle godkendelsesflow, hvor "Godkend" er ét klik.
-// Kører den mod en ISC-release hvor SailPoint har indført et ekstra bekræftelsestrin,
-// fejler den. Det er præcis den situation frameworket findes for at opdage.
+// VERSION 1.1.0 — tilpasset efter SailPoint-release ISC 2026.10.
+//
+// Hvad skete der: i 2026.10 indførte SailPoint et ekstra bekræftelsestrin, så
+// "Godkend" ikke længere afslutter godkendelsen i ét klik. Version 1.0.0 af denne
+// test kendte kun det gamle flow og begyndte derfor at fejle i sandbox, få dage før
+// samme release rammer prod. Denne version håndterer begge flows, så den kan køre
+// i sandbox (2026.10) og i prod (2026.09) side om side indtil prod er opdateret.
 
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
 module.exports = {
   id: 'approval',
   navn: 'Godkend adgangsanmodning',
-  version: '1.0.0',
+  version: '1.1.0',
   severity: 'high',
-  forventet_varighed_ms: 2500,
+  forventet_varighed_ms: 3200, // et trin mere end i 1.0.0
 
   async run(ctx) {
     if (!ctx.mock) return { status: 'skipped', trin: [], note: 'Kun implementeret som mock i denne demo.' };
@@ -20,11 +24,8 @@ module.exports = {
     const trin = ['Åbn indbakke', 'Vælg anmodning REQ-1042', 'Klik "Godkend"'];
 
     if (ctx.isc_release >= '2026.10') {
-      return {
-        status: 'fail',
-        trin,
-        note: '"Godkend" åbnede en bekræftelsesdialog som testen ikke kender. Anmodningen står stadig som afventende. Ligner en ændring i ISC.',
-      };
+      await pause(80);
+      trin.push('Bekræft i dialogen (nyt trin i ISC 2026.10)');
     }
 
     return { status: 'pass', trin: trin.concat('Status blev "Godkendt"') };
