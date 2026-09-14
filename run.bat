@@ -30,6 +30,7 @@ echo.
 echo   Kundefil:    %PROPS%
 echo   kunde:       !KUNDE!
 echo   tenant_url:  !TENANT_URL!
+echo   env: prod
 echo.
 echo   Her ville testene koere mod !TENANT_URL!
 echo.
