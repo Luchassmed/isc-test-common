@@ -1,0 +1,7 @@
+# testnavn|betingelse
+#   (tom)      = kor altid
+#   feature    = kor kun hvis feature_<navn>=true
+#   -feature   = kor kun hvis feature_<navn>=false
+test_login|
+test_create_case|
+test_search_basic|

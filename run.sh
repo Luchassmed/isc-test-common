@@ -1,29 +1,51 @@
-#!/bin/sh
-# ------------------------------------------------------------------
-#  Ligger i common (det fælles repo) og kaldes fra kunderepoet:
-#      common/run.sh
-#
-#  Common kender ikke kundens navn. Den leder efter en .properties-fil
-#  i det repo den er submodule i, og læser værdierne derfra.
-# ------------------------------------------------------------------
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Mappen som dette script ligger i, ét niveau op = kunderepoets rod.
-KUNDEROD=$(cd "$(dirname "$0")/.." && pwd)
+ENVNAME="${1:-sandbox}"
+FW_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CUSTOMER_ROOT="$(cd "$FW_ROOT/.." && pwd)"
+CFG="$CUSTOMER_ROOT/config/$ENVNAME.properties"
 
-PROPS=$(ls "$KUNDEROD"/*.properties 2>/dev/null | head -1)
-if [ -z "$PROPS" ]; then
-  echo "FEJL: fandt ingen .properties-fil i $KUNDEROD"
-  exit 1
-fi
+[ -f "$CFG" ] || { echo "[FEJL] Konfiguration ikke fundet: $CFG"; exit 1; }
 
-# Hent én værdi ud af propertyfilen. '#' er kommentar.
-hent() { grep "^$1=" "$PROPS" | cut -d= -f2-; }
+declare -A CFGV
+while IFS='=' read -r k v; do
+  [[ -z "${k// }" || "$k" == \#* ]] && continue
+  CFGV["${k// }"]="${v// }"
+done < "$CFG"
 
-echo ""
-echo "  Kundefil:    $PROPS"
-echo "  kunde:       $(hent kunde)"
-echo "  tenant_url:  $(hent tenant_url)"
-echo "  environment: prod"
-echo ""
-echo "  Her ville testene køre mod $(hent tenant_url)"
-echo ""
+FW_VERSION="$(cat "$FW_ROOT/VERSION")"
+
+echo "=================================================="
+echo " Framework version : $FW_VERSION"
+echo " Miljoe            : $ENVNAME"
+echo " Tenant URL        : ${CFGV[tenant_url]:-}"
+echo " Source ID         : ${CFGV[source_id]:-}"
+echo " Platform version  : ${CFGV[platform_version]:-}"
+echo "=================================================="
+
+gate() {
+  local name="$1" req="${2:-}" want="true" val
+  if [ -z "$req" ]; then printf "  [RUN ] %s\n" "$name"; return; fi
+  if [[ "$req" == -* ]]; then want="false"; req="${req#-}"; fi
+  val="${CFGV[feature_$req]:-false}"
+  if [ "$val" = "$want" ]; then
+    printf "  [RUN ] %-28s (feature %s=%s)\n" "$name" "$req" "$val"
+  else
+    printf "  [SKIP] %-28s (feature %s=%s)\n" "$name" "$req" "$val"
+  fi
+}
+
+run_manifest() {
+  [ -f "$1" ] || { echo "  (ingen tests)"; return; }
+  while IFS='|' read -r name req; do
+    [[ -z "${name// }" || "$name" == \#* ]] && continue
+    gate "${name// }" "${req// }"
+  done < "$1"
+}
+
+echo; echo "--- Faelles tests (common) ---"
+run_manifest "$FW_ROOT/tests/manifest.txt"
+echo; echo "--- Kundespecifikke tests (kunde-repo) ---"
+run_manifest "$CUSTOMER_ROOT/tests/manifest.txt"
+echo
