@@ -1,0 +1,5 @@
+# faelles tests (sandbox: leverandøren har rullet en ny feature ud her først)
+test_login
+test_create_case
+test_search_basic
+test_new_beta_feature

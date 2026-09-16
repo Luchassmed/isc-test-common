@@ -1,29 +1,38 @@
-#!/bin/sh
-# ------------------------------------------------------------------
-#  Ligger i common (det fælles repo) og kaldes fra kunderepoet:
-#      common/run.sh
-#
-#  Common kender ikke kundens navn. Den leder efter en .properties-fil
-#  i det repo den er submodule i, og læser værdierne derfra.
-# ------------------------------------------------------------------
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Mappen som dette script ligger i, ét niveau op = kunderepoets rod.
-KUNDEROD=$(cd "$(dirname "$0")/.." && pwd)
+COMMON_VARIANT="SANDBOX"
+ENVNAME="${1:-sandbox}"
+FW_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CUSTOMER_ROOT="$(cd "$FW_ROOT/.." && pwd)"
+CFG="$CUSTOMER_ROOT/config/$ENVNAME.properties"
 
-PROPS=$(ls "$KUNDEROD"/*.properties 2>/dev/null | head -1)
-if [ -z "$PROPS" ]; then
-  echo "FEJL: fandt ingen .properties-fil i $KUNDEROD"
-  exit 1
-fi
+[ -f "$CFG" ] || { echo "[FEJL] Konfiguration ikke fundet: $CFG"; exit 1; }
 
-# Hent én værdi ud af propertyfilen. '#' er kommentar.
-hent() { grep "^$1=" "$PROPS" | cut -d= -f2-; }
+declare -A CFGV
+while IFS='=' read -r k v; do
+  [[ -z "${k// }" || "$k" == \#* ]] && continue
+  CFGV["${k// }"]="${v// }"
+done < "$CFG"
 
-echo ""
-echo "  Kundefil:    $PROPS"
-echo "  kunde:       $(hent kunde)"
-echo "  tenant_url:  $(hent tenant_url)"
-echo "  envionment: sandbox"
-echo ""
-echo "  Her ville testene køre mod $(hent tenant_url)"
-echo ""
+echo "=================================================="
+echo " Common branch     : $COMMON_VARIANT"
+echo " Miljoe            : $ENVNAME"
+echo " Tenant URL        : ${CFGV[tenant_url]:-}"
+echo " Source ID         : ${CFGV[source_id]:-}"
+echo " Platform version  : ${CFGV[platform_version]:-}"
+echo "=================================================="
+
+run_manifest() {
+  [ -f "$1" ] || { echo "  (ingen tests)"; return; }
+  while IFS= read -r name; do
+    [[ -z "${name// }" || "$name" == \#* ]] && continue
+    printf "  [RUN] %s\n" "$name"
+  done < "$1"
+}
+
+echo; echo "--- Faelles tests (common) ---"
+run_manifest "$FW_ROOT/tests/manifest.txt"
+echo; echo "--- Kundespecifikke tests (kunde-repo) ---"
+run_manifest "$CUSTOMER_ROOT/tests/manifest.txt"
+echo
