@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+COMMON_VARIANT="MAIN"
 ENVNAME="${1:-sandbox}"
 FW_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CUSTOMER_ROOT="$(cd "$FW_ROOT/.." && pwd)"
@@ -14,33 +15,19 @@ while IFS='=' read -r k v; do
   CFGV["${k// }"]="${v// }"
 done < "$CFG"
 
-FW_VERSION="$(cat "$FW_ROOT/VERSION")"
-
 echo "=================================================="
-echo " Framework version : $FW_VERSION"
+echo " Common branch     : $COMMON_VARIANT"
 echo " Miljoe            : $ENVNAME"
 echo " Tenant URL        : ${CFGV[tenant_url]:-}"
 echo " Source ID         : ${CFGV[source_id]:-}"
 echo " Platform version  : ${CFGV[platform_version]:-}"
 echo "=================================================="
 
-gate() {
-  local name="$1" req="${2:-}" want="true" val
-  if [ -z "$req" ]; then printf "  [RUN ] %s\n" "$name"; return; fi
-  if [[ "$req" == -* ]]; then want="false"; req="${req#-}"; fi
-  val="${CFGV[feature_$req]:-false}"
-  if [ "$val" = "$want" ]; then
-    printf "  [RUN ] %-28s (feature %s=%s)\n" "$name" "$req" "$val"
-  else
-    printf "  [SKIP] %-28s (feature %s=%s)\n" "$name" "$req" "$val"
-  fi
-}
-
 run_manifest() {
   [ -f "$1" ] || { echo "  (ingen tests)"; return; }
-  while IFS='|' read -r name req; do
+  while IFS= read -r name; do
     [[ -z "${name// }" || "$name" == \#* ]] && continue
-    gate "${name// }" "${req// }"
+    printf "  [RUN] %s\n" "$name"
   done < "$1"
 }
 

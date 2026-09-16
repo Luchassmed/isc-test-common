@@ -37,10 +37,14 @@ common\run.bat         # Windows
 ## Brug som submodule
 
 ```sh
-git submodule add https://github.com/Luchassmed/isc-test-common.git common
-git -C common checkout v1.0.0        # pin til et tag
-git add common .gitmodules && git commit -m "Pin common til v1.0.0"
+git submodule add -b main https://github.com/Luchassmed/isc-test-common.git common
+git add common .gitmodules && git commit -m "Tilføj common som submodule (branch main)"
 ```
 
-Kunderepoet gemmer kun hvilken **commit** af dette repo det bruger. En ændring her
-rammer derfor ingen kunde automatisk — kunden flytter selv sin pin, når de vil.
+Kunderepoet peger på en **branch** af dette repo (`main` eller `sandbox`), ikke en fast
+commit. Miljøet styres ved at ændre `branch = ...` i kundens `.gitmodules` og køre:
+
+```sh
+git submodule sync -- common
+git submodule update --init --remote common
+```

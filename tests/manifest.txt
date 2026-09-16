@@ -1,9 +1,4 @@
-# testnavn|betingelse
-#   (tom)      = kor altid
-#   feature    = kor kun hvis feature_<navn>=true
-#   -feature   = kor kun hvis feature_<navn>=false
-test_login|
-test_create_case|
-test_search_basic|
-test_invoice_new_flow|new_invoice_flow
-test_invoice_legacy_flow|-new_invoice_flow
+# faelles tests
+test_login
+test_create_case
+test_search_basic
