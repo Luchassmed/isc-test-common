@@ -48,3 +48,17 @@ commit. Miljøet styres ved at ændre `branch = ...` i kundens `.gitmodules` og 
 git submodule sync -- common
 git submodule update --init --remote common
 ```
+
+## Docker
+
+`Dockerfile` ligger her, men skal bygges med **kunderepoets rod** som context (ikke
+denne mappe), fordi `run.sh` forventer `config/` og `tests/` ét niveau op. Fra
+kunderepoets rod:
+
+```sh
+docker build -f common/Dockerfile -t isc-test-runner .
+docker run --rm isc-test-runner sandbox
+```
+
+Da Dockerfilen ligger i `common/`, følger den automatisk med ind i alle kunderepos via
+submodulet — den skal ikke duplikeres per kunde.
