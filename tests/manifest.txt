@@ -1,4 +1,0 @@
-# faelles tests
-test_login
-test_create_case
-test_search_basic

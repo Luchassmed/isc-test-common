@@ -62,3 +62,18 @@ docker run --rm isc-test-runner sandbox
 
 Da Dockerfilen ligger i `common/`, følger den automatisk med ind i alle kunderepos via
 submodulet — den skal ikke duplikeres per kunde.
+
+## Playwright
+
+`tests/smoke.spec.js` er en uautentificeret smoke-test: den åbner `tenant_url` fra
+kundens `.properties`-fil og verificerer at siden svarer og loader en titel. Ingen
+credentials involveret — den beviser kun at miljøet (lokalt, container eller CI) kan nå
+tenanten over nettet.
+
+`run.sh`/`run.bat` eksporterer `tenant_url` som `TENANT_URL` og kalder
+`npx playwright test`. Kør lokalt uden Docker (kræver Node):
+
+```sh
+npm install --prefix common
+common/run.sh sandbox
+```

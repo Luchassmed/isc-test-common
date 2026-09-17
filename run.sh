@@ -31,8 +31,13 @@ run_manifest() {
   done < "$1"
 }
 
-echo; echo "--- Faelles tests (common) ---"
-run_manifest "$FW_ROOT/tests/manifest.txt"
+export TENANT_URL="${CFGV[tenant_url]:-}"
+export SOURCE_ID="${CFGV[source_id]:-}"
+export PLATFORM_VERSION="${CFGV[platform_version]:-}"
+
+echo; echo "--- Playwright tests (common) ---"
+(cd "$FW_ROOT" && npx playwright test)
+
 echo; echo "--- Kundespecifikke tests (kunde-repo) ---"
 run_manifest "$CUSTOMER_ROOT/tests/manifest.txt"
 echo

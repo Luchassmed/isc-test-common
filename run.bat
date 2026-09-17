@@ -24,9 +24,18 @@ echo  Tenant URL        : !cfg_tenant_url!
 echo  Source ID         : !cfg_source_id!
 echo  Platform version  : !cfg_platform_version!
 echo ==================================================
+set "TENANT_URL=!cfg_tenant_url!"
+set "SOURCE_ID=!cfg_source_id!"
+set "PLATFORM_VERSION=!cfg_platform_version!"
+
 echo.
-echo --- Faelles tests (common) ---
-call :run_manifest "%FW_ROOT%tests\manifest.txt"
+echo --- Playwright tests (common) ---
+pushd "%FW_ROOT%"
+call npx playwright test
+set "PW_EXIT=%ERRORLEVEL%"
+popd
+if not "%PW_EXIT%"=="0" exit /b %PW_EXIT%
+
 echo.
 echo --- Kundespecifikke tests (kunde-repo) ---
 call :run_manifest "%CUSTOMER_ROOT%\tests\manifest.txt"
