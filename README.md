@@ -70,6 +70,20 @@ kundens `.properties`-fil og verificerer at siden svarer og loader en titel. Ing
 credentials involveret — den beviser kun at miljøet (lokalt, container eller CI) kan nå
 tenanten over nettet.
 
+`tests/login.spec.js` logger faktisk ind med `ISC_USERNAME`/`ISC_PASSWORD`. Disse
+kommer **aldrig** fra en `.properties`-fil (den er committet til git) — de skal sættes
+som miljøvariabler uden for repoet, fx:
+
+```powershell
+$env:ISC_USERNAME = "..."
+$env:ISC_PASSWORD = "..."
+common\run.bat sandbox
+```
+
+Er de ikke sat, springes login-testen automatisk over (`test.skip`) i stedet for at
+fejle. I GitHub Actions sættes de som repo-secrets (`ISC_USERNAME`, `ISC_PASSWORD`) og
+sendes ind i containeren via `docker create -e`.
+
 `run.sh`/`run.bat` eksporterer `tenant_url` som `TENANT_URL` og kalder
 `npx playwright test`. Kør lokalt uden Docker (kræver Node):
 
