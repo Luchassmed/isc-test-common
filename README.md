@@ -71,18 +71,24 @@ credentials involveret — den beviser kun at miljøet (lokalt, container eller 
 tenanten over nettet.
 
 `tests/login.spec.js` logger faktisk ind med `ISC_USERNAME`/`ISC_PASSWORD`. Disse
-kommer **aldrig** fra en `.properties`-fil (den er committet til git) — de skal sættes
-som miljøvariabler uden for repoet, fx:
+kommer **aldrig** fra en `.properties`-fil (den er committet til git) — testkoden
+læser dem udelukkende som miljøvariabler (`process.env.ISC_USERNAME`). *Hvordan* de
+miljøvariabler bliver sat er bevidst holdt uden for testkoden, så det kan variere per
+kunde/opsætning:
 
-```powershell
-$env:ISC_USERNAME = "..."
-$env:ISC_PASSWORD = "..."
-common\run.bat sandbox
-```
+- **Lokalt / native på en server** — kopier `.env.example` til `.env` i kunderepoets
+  rod og udfyld den. `run.sh`/`run.bat` læser `.env` (hvis den findes) og eksporterer
+  indholdet som miljøvariabler, samme mekanisme som for `.properties`. `.env` ligger i
+  `.gitignore` og `.dockerignore` — den bliver aldrig committet eller bygget ind i et
+  image.
+- **GitHub Actions** — sættes som repo-secrets (`ISC_USERNAME`, `ISC_PASSWORD`) og
+  sendes ind i containeren via `docker create -e`.
+- **Key vault (Azure Key Vault, HashiCorp Vault, o.lign.)** — kør et lille
+  hente-script *før* `run.bat`, der henter secrets fra vaulten og sætter dem som
+  almindelige miljøvariabler i samme shell. Testkoden skal ikke ændres.
 
-Er de ikke sat, springes login-testen automatisk over (`test.skip`) i stedet for at
-fejle. I GitHub Actions sættes de som repo-secrets (`ISC_USERNAME`, `ISC_PASSWORD`) og
-sendes ind i containeren via `docker create -e`.
+Er `ISC_USERNAME`/`ISC_PASSWORD` slet ikke sat, springes login-testen automatisk over
+(`test.skip`) i stedet for at fejle.
 
 `run.sh`/`run.bat` eksporterer `tenant_url` som `TENANT_URL` og kalder
 `npx playwright test`. Kør lokalt uden Docker (kræver Node):

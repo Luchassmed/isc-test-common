@@ -35,6 +35,16 @@ export TENANT_URL="${CFGV[tenant_url]:-}"
 export SOURCE_ID="${CFGV[source_id]:-}"
 export PLATFORM_VERSION="${CFGV[platform_version]:-}"
 
+# Credentials kommer fra en lokal .env (aldrig committet), ikke fra .properties.
+ENV_FILE="$CUSTOMER_ROOT/.env"
+if [ -f "$ENV_FILE" ]; then
+  while IFS='=' read -r k v; do
+    k="${k// }"
+    [[ -z "$k" || "$k" == \#* ]] && continue
+    export "$k=${v// }"
+  done < "$ENV_FILE"
+fi
+
 echo; echo "--- Playwright tests (common) ---"
 (cd "$FW_ROOT" && npx playwright test)
 

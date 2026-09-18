@@ -28,6 +28,12 @@ set "TENANT_URL=!cfg_tenant_url!"
 set "SOURCE_ID=!cfg_source_id!"
 set "PLATFORM_VERSION=!cfg_platform_version!"
 
+rem --- credentials kommer fra en lokal .env (aldrig committet), ikke fra .properties ---
+set "ENVFILE=%CUSTOMER_ROOT%\.env"
+if exist "%ENVFILE%" (
+  for /f "usebackq eol=# tokens=1,* delims==" %%A in ("%ENVFILE%") do set "%%A=%%B"
+)
+
 echo.
 echo --- Playwright tests (common) ---
 pushd "%FW_ROOT%"
