@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-COMMON_VARIANT="MAIN"
 ENVNAME="${1:-sandbox}"
 FW_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CUSTOMER_ROOT="$(cd "$FW_ROOT/.." && pwd)"
 CFG="$CUSTOMER_ROOT/config/$ENVNAME.properties"
+
+COMMON_VARIANT="$(git -C "$FW_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "ukendt (ingen .git i image)")"
 
 [ -f "$CFG" ] || { echo "[FEJL] Konfiguration ikke fundet: $CFG"; exit 1; }
 

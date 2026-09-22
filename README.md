@@ -42,7 +42,13 @@ git add common .gitmodules && git commit -m "Tilføj common som submodule (branc
 ```
 
 Kunderepoet peger på en **branch** af dette repo (`main` eller `sandbox`), ikke en fast
-commit. Miljøet styres ved at ændre `branch = ...` i kundens `.gitmodules` og køre:
+commit.
+
+Ved native/Windows Server-kørsel sker branch-skiftet automatisk: kunderepoets
+`run.bat`/`run.sh` (root-niveau, ikke dem herinde i `common/`) kalder `git fetch` +
+`git checkout` på `common/` ud fra miljø-argumentet, før testene startes — se
+`kunde-a`s README for detaljer. Ved Docker/GitHub Actions styres det stadig manuelt
+via `branch = ...` i kundens `.gitmodules`:
 
 ```sh
 git submodule sync -- common
@@ -91,9 +97,10 @@ Er `ISC_USERNAME`/`ISC_PASSWORD` slet ikke sat, springes login-testen automatisk
 (`test.skip`) i stedet for at fejle.
 
 `run.sh`/`run.bat` eksporterer `tenant_url` som `TENANT_URL` og kalder
-`npx playwright test`. Kør lokalt uden Docker (kræver Node):
+`npx playwright test`. Kør lokalt uden Docker (kræver Node) — fra kunderepoets rod,
+så branch-skiftet beskrevet ovenfor tages med:
 
 ```sh
-npm install --prefix common
-common/run.sh sandbox
+common/setup.sh        # én gang: installerer Playwright + browsere
+./run.sh sandbox        # fra kunderepoets rod, ikke fra common/
 ```

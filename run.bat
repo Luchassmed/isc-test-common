@@ -1,13 +1,16 @@
 @echo off
 setlocal enabledelayedexpansion
 
-set "COMMON_VARIANT=MAIN"
 set "ENVNAME=%~1"
 if "%ENVNAME%"=="" set "ENVNAME=sandbox"
 
 set "FW_ROOT=%~dp0"
 set "CUSTOMER_ROOT=%FW_ROOT%.."
 set "CFG=%CUSTOMER_ROOT%\config\%ENVNAME%.properties"
+
+set "COMMON_VARIANT="
+for /f "delims=" %%G in ('git -C "%FW_ROOT%" rev-parse --abbrev-ref HEAD 2^>nul') do set "COMMON_VARIANT=%%G"
+if not defined COMMON_VARIANT set "COMMON_VARIANT=ukendt (ingen .git i image)"
 
 if not exist "%CFG%" (
   echo [FEJL] Konfiguration ikke fundet: %CFG%
