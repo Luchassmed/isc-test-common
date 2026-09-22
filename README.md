@@ -42,9 +42,65 @@ git add common .gitmodules && git commit -m "Tilføj common som submodule (branc
 ```
 
 Kunderepoet peger på en **branch** af dette repo (`main` eller `sandbox`), ikke en fast
-commit. Miljøet styres ved at ændre `branch = ...` i kundens `.gitmodules` og køre:
+commit.
+
+Ved native/Windows Server-kørsel sker branch-skiftet automatisk: kunderepoets
+`run.bat`/`run.sh` (root-niveau, ikke dem herinde i `common/`) kalder `git fetch` +
+`git checkout` på `common/` ud fra miljø-argumentet, før testene startes — se
+`kunde-a`s README for detaljer. Ved Docker/GitHub Actions styres det stadig manuelt
+via `branch = ...` i kundens `.gitmodules`:
 
 ```sh
 git submodule sync -- common
 git submodule update --init --remote common
+```
+
+## Docker
+
+`Dockerfile` ligger her, men skal bygges med **kunderepoets rod** som context (ikke
+denne mappe), fordi `run.sh` forventer `config/` og `tests/` ét niveau op. Fra
+kunderepoets rod:
+
+```sh
+docker build -f common/Dockerfile -t isc-test-runner .
+docker run --rm isc-test-runner sandbox
+```
+
+Da Dockerfilen ligger i `common/`, følger den automatisk med ind i alle kunderepos via
+submodulet — den skal ikke duplikeres per kunde.
+
+## Playwright
+
+`tests/smoke.spec.js` er en uautentificeret smoke-test: den åbner `tenant_url` fra
+kundens `.properties`-fil og verificerer at siden svarer og loader en titel. Ingen
+credentials involveret — den beviser kun at miljøet (lokalt, container eller CI) kan nå
+tenanten over nettet.
+
+`tests/login.spec.js` logger faktisk ind med `ISC_USERNAME`/`ISC_PASSWORD`. Disse
+kommer **aldrig** fra en `.properties`-fil (den er committet til git) — testkoden
+læser dem udelukkende som miljøvariabler (`process.env.ISC_USERNAME`). *Hvordan* de
+miljøvariabler bliver sat er bevidst holdt uden for testkoden, så det kan variere per
+kunde/opsætning:
+
+- **Lokalt / native på en server** — kopier `.env.example` til `.env` i kunderepoets
+  rod og udfyld den. `run.sh`/`run.bat` læser `.env` (hvis den findes) og eksporterer
+  indholdet som miljøvariabler, samme mekanisme som for `.properties`. `.env` ligger i
+  `.gitignore` og `.dockerignore` — den bliver aldrig committet eller bygget ind i et
+  image.
+- **GitHub Actions** — sættes som repo-secrets (`ISC_USERNAME`, `ISC_PASSWORD`) og
+  sendes ind i containeren via `docker create -e`.
+- **Key vault (Azure Key Vault, HashiCorp Vault, o.lign.)** — kør et lille
+  hente-script *før* `run.bat`, der henter secrets fra vaulten og sætter dem som
+  almindelige miljøvariabler i samme shell. Testkoden skal ikke ændres.
+
+Er `ISC_USERNAME`/`ISC_PASSWORD` slet ikke sat, springes login-testen automatisk over
+(`test.skip`) i stedet for at fejle.
+
+`run.sh`/`run.bat` eksporterer `tenant_url` som `TENANT_URL` og kalder
+`npx playwright test`. Kør lokalt uden Docker (kræver Node) — fra kunderepoets rod,
+så branch-skiftet beskrevet ovenfor tages med:
+
+```sh
+common/setup.sh        # én gang: installerer Playwright + browsere
+./run.sh sandbox        # fra kunderepoets rod, ikke fra common/
 ```

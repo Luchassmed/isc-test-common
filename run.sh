@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-COMMON_VARIANT="SANDBOX"
 ENVNAME="${1:-sandbox}"
 FW_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CUSTOMER_ROOT="$(cd "$FW_ROOT/.." && pwd)"
 CFG="$CUSTOMER_ROOT/config/$ENVNAME.properties"
+
+COMMON_VARIANT="$(git -C "$FW_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "ukendt (ingen .git i image)")"
 
 [ -f "$CFG" ] || { echo "[FEJL] Konfiguration ikke fundet: $CFG"; exit 1; }
 
@@ -31,8 +32,23 @@ run_manifest() {
   done < "$1"
 }
 
-echo; echo "--- Faelles tests (common) ---"
-run_manifest "$FW_ROOT/tests/manifest.txt"
+export TENANT_URL="${CFGV[tenant_url]:-}"
+export SOURCE_ID="${CFGV[source_id]:-}"
+export PLATFORM_VERSION="${CFGV[platform_version]:-}"
+
+# Credentials kommer fra en lokal .env (aldrig committet), ikke fra .properties.
+ENV_FILE="$CUSTOMER_ROOT/.env"
+if [ -f "$ENV_FILE" ]; then
+  while IFS='=' read -r k v; do
+    k="${k// }"
+    [[ -z "$k" || "$k" == \#* ]] && continue
+    export "$k=${v// }"
+  done < "$ENV_FILE"
+fi
+
+echo; echo "--- Playwright tests (common) ---"
+(cd "$FW_ROOT" && npx playwright test)
+
 echo; echo "--- Kundespecifikke tests (kunde-repo) ---"
 run_manifest "$CUSTOMER_ROOT/tests/manifest.txt"
 echo
