@@ -8,8 +8,13 @@ set "FW_ROOT=%~dp0"
 set "CUSTOMER_ROOT=%FW_ROOT%.."
 set "CFG=%CUSTOMER_ROOT%\config\%ENVNAME%.properties"
 
+rem git -C med en sti der ender paa "\" lige foer den afsluttende " bliver
+rem fejltolket (\" opfattes som et escaped anfoerselstegn) - brug en variant
+rem uden den afsluttende backslash til git-kald.
+set "FW_ROOT_GIT=%FW_ROOT:~0,-1%"
+
 set "COMMON_VARIANT="
-for /f "delims=" %%G in ('git -C "%FW_ROOT%" rev-parse --abbrev-ref HEAD 2^>nul') do set "COMMON_VARIANT=%%G"
+for /f "delims=" %%G in ('git -C "%FW_ROOT_GIT%" rev-parse --abbrev-ref HEAD 2^>nul') do set "COMMON_VARIANT=%%G"
 if not defined COMMON_VARIANT set "COMMON_VARIANT=ukendt (ingen .git i image)"
 
 if not exist "%CFG%" (
