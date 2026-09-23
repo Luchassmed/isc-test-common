@@ -53,10 +53,22 @@ if not "%PW_EXIT%"=="0" exit /b %PW_EXIT%
 echo.
 echo --- Kundespecifikke tests (kunde-repo) ---
 call :run_manifest "%CUSTOMER_ROOT%\tests\manifest.txt"
+set "MANIFEST_EXIT=%ERRORLEVEL%"
 echo.
-exit /b 0
+exit /b %MANIFEST_EXIT%
 
 :run_manifest
-if not exist "%~1" ( echo   ^(ingen tests^) & exit /b 0 )
-for /f "usebackq eol=# delims=" %%A in ("%~1") do echo   [RUN] %%A
-exit /b 0
+if not exist "%~1" ( echo   ^(ingen tests i manifest.txt^) & exit /b 0 )
+set "MANIFEST_FILES="
+for /f "usebackq eol=# delims=" %%A in ("%~1") do (
+  if not "%%A"=="" set "MANIFEST_FILES=!MANIFEST_FILES! %%A"
+)
+if not defined MANIFEST_FILES ( echo   ^(ingen tests i manifest.txt^) & exit /b 0 )
+rem tests/ i kunde-repoet har ingen egen node_modules - "@playwright/test" findes
+rem kun under common/node_modules, saa den skal saettes eksplicit via NODE_PATH.
+set "NODE_PATH=%FW_ROOT%node_modules"
+pushd "%FW_ROOT%"
+call npx playwright test --config=playwright.customer.config.js !MANIFEST_FILES!
+set "MRESULT=%ERRORLEVEL%"
+popd
+exit /b %MRESULT%
