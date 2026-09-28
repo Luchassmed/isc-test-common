@@ -11,4 +11,4 @@ echo "Installerer Playwright-browsere..."
 npx playwright install
 
 echo
-echo "Faerdig. Koer \"common/run.sh <miljoe>\" for at teste."
+echo "Faerdig. Koer \"./run.sh <miljoe>\" fra kunderepoets rod for at teste."

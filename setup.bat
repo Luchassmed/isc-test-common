@@ -14,7 +14,7 @@ if errorlevel 1 goto :fail
 
 popd
 echo.
-echo Faerdig. Koer "common\run.bat <miljoe>" for at teste.
+echo Faerdig. Koer "run.bat <miljoe>" fra kunderepoets rod for at teste.
 exit /b 0
 
 :fail

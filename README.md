@@ -1,37 +1,31 @@
 # isc-test-common
 
 Det fælles repo. Her ligger den kode PwC vedligeholder ét sted og genbruger på tværs
-af kunder. Det trækkes ind i hvert kunderepo som et git-submodule.
+af kunder. Det trækkes ind i hvert kunderepo som et git-submodule i mappen `common/`.
 
-```
-run.sh    Læser kundens .properties-fil og bruger værdierne.
-run.bat   Det samme, til Windows.
-```
-
-## Pointen
-
-Common indeholder **ingen kundedata og kender ikke kundens navn**. Når scriptet kører,
-kigger det ét niveau op — ud i det kunderepo det er submodule i — og finder den
-`.properties`-fil der ligger der:
+Common indeholder **ingen kundedata og kender ikke kundens navn**. Kunderepoet
+leverer værdierne:
 
 ```
 kunde-a/
-  kunde-a.properties     ← kundens værdier, fx tenant_url
+  config/*.properties   ← kundens miljøværdier (tenant_url, ...)
+  .env                  ← credentials, ikke committet
+  tests/manifest.txt    ← kundespecifikke tests
   common/                ← dette repo
-    run.sh  run.bat      ← læser filen ovenover
+    run.sh  run.bat
 ```
 
 Det er den ene kobling hele modellen hviler på: **koden kommer fra PwC, værdierne
-kommer fra kunden.** Skal en ny kunde på, opretter man et nyt kunderepo med deres
-egen `.properties`-fil — common er uændret.
+kommer fra kunden.** Skal en ny kunde på, opretter man et nyt kunderepo — common er
+uændret.
 
 ## Kørsel
 
-Fra kunderepoets rod:
+Fra kunderepoets rod (ikke herfra — se "Branch-skift" nedenfor):
 
 ```sh
-common/run.sh          # macOS / Linux
-common\run.bat         # Windows
+./run.sh sandbox     # macOS / Linux
+run.bat sandbox      # Windows
 ```
 
 ## Brug som submodule
@@ -42,13 +36,14 @@ git add common .gitmodules && git commit -m "Tilføj common som submodule (branc
 ```
 
 Kunderepoet peger på en **branch** af dette repo (`main` eller `sandbox`), ikke en fast
-commit.
+commit — leverandøren ruller ændringer ud på sandbox nogle dage før pre-prod/prod, og
+koden her skal kunne følge med.
 
 Ved native/Windows Server-kørsel sker branch-skiftet automatisk: kunderepoets
 `run.bat`/`run.sh` (root-niveau, ikke dem herinde i `common/`) kalder `git fetch` +
-`git checkout` på `common/` ud fra miljø-argumentet, før testene startes — se
-`kunde-a`s README for detaljer. Ved Docker/GitHub Actions styres det stadig manuelt
-via `branch = ...` i kundens `.gitmodules`:
+`git checkout` på `common/` ud fra miljø-argumentet — se `kunde-a`s README for
+detaljer. Ved Docker/GitHub Actions styres det stadig manuelt via `branch = ...` i
+kundens `.gitmodules`:
 
 ```sh
 git submodule sync -- common
@@ -58,8 +53,7 @@ git submodule update --init --remote common
 ## Docker
 
 `Dockerfile` ligger her, men skal bygges med **kunderepoets rod** som context (ikke
-denne mappe), fordi `run.sh` forventer `config/` og `tests/` ét niveau op. Fra
-kunderepoets rod:
+denne mappe), fordi `run.sh` forventer `config/` og `tests/` ét niveau op:
 
 ```sh
 docker build -f common/Dockerfile -t isc-test-runner .
@@ -71,34 +65,16 @@ submodulet — den skal ikke duplikeres per kunde.
 
 ## Playwright
 
-`tests/smoke.spec.js` er en uautentificeret smoke-test: den åbner `tenant_url` fra
-kundens `.properties`-fil og verificerer at siden svarer og loader en titel. Ingen
-credentials involveret — den beviser kun at miljøet (lokalt, container eller CI) kan nå
-tenanten over nettet.
+- **`tests/smoke.spec.js`** — uautentificeret. Åbner `TENANT_URL` og verificerer at
+  tenanten svarer og loader en titel. Beviser kun netværksadgang.
+- **`tests/login.spec.js`** — logger ind med `ISC_USERNAME`/`ISC_PASSWORD`
+  (miljøvariabler, aldrig fra `.properties`) og tjekker at login-formularen forsvinder.
+  Springes automatisk over (`test.skip`), hvis credentials ikke er sat.
+- **`playwright.config.js`** dækker testene ovenfor. **`playwright.customer.config.js`**
+  kører i stedet kunderepoets `tests/` (styret af `tests/manifest.txt`) — se
+  `kunde-a`s README for hvordan credentials sættes op.
 
-`tests/login.spec.js` logger faktisk ind med `ISC_USERNAME`/`ISC_PASSWORD`. Disse
-kommer **aldrig** fra en `.properties`-fil (den er committet til git) — testkoden
-læser dem udelukkende som miljøvariabler (`process.env.ISC_USERNAME`). *Hvordan* de
-miljøvariabler bliver sat er bevidst holdt uden for testkoden, så det kan variere per
-kunde/opsætning:
-
-- **Lokalt / native på en server** — kopier `.env.example` til `.env` i kunderepoets
-  rod og udfyld den. `run.sh`/`run.bat` læser `.env` (hvis den findes) og eksporterer
-  indholdet som miljøvariabler, samme mekanisme som for `.properties`. `.env` ligger i
-  `.gitignore` og `.dockerignore` — den bliver aldrig committet eller bygget ind i et
-  image.
-- **GitHub Actions** — sættes som repo-secrets (`ISC_USERNAME`, `ISC_PASSWORD`) og
-  sendes ind i containeren via `docker create -e`.
-- **Key vault (Azure Key Vault, HashiCorp Vault, o.lign.)** — kør et lille
-  hente-script *før* `run.bat`, der henter secrets fra vaulten og sætter dem som
-  almindelige miljøvariabler i samme shell. Testkoden skal ikke ændres.
-
-Er `ISC_USERNAME`/`ISC_PASSWORD` slet ikke sat, springes login-testen automatisk over
-(`test.skip`) i stedet for at fejle.
-
-`run.sh`/`run.bat` eksporterer `tenant_url` som `TENANT_URL` og kalder
-`npx playwright test`. Kør lokalt uden Docker (kræver Node) — fra kunderepoets rod,
-så branch-skiftet beskrevet ovenfor tages med:
+Kør lokalt uden Docker (kræver Node) — fra kunderepoets rod:
 
 ```sh
 common/setup.sh        # én gang: installerer Playwright + browsere
